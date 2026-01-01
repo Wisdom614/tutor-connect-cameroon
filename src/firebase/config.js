@@ -1,94 +1,67 @@
 import { initializeApp } from "firebase/app";
-import { 
-  getAuth, 
-  GoogleAuthProvider,
-  setPersistence,
-  browserLocalPersistence,
-  sendEmailVerification,
-  applyActionCode,
-  verifyPasswordResetCode,
-  confirmPasswordReset
-} from "firebase/auth";
+import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
-// Your Firebase configuration
+// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyDlW7zWL3oozFpOCZMQ3GDSw7Mn1oE-gag",
-  authDomain: "firstproject-f83d3.firebaseapp.com",
-  projectId: "firstproject-f83d3",
-  storageBucket: "firstproject-f83d3.firebasestorage.app",
-  messagingSenderId: "227224002082",
-  appId: "1:227224002082:web:e9a563ca0c6bebdc5fb47b",
-  measurementId: "G-Q1QFH2ZLGZ"
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID
 };
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+let app;
+let auth;
+let db;
+let storage;
+let googleProvider;
 
-// Initialize Firebase services
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+try {
+  app = initializeApp(firebaseConfig);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  storage = getStorage(app);
+  googleProvider = new GoogleAuthProvider();
+  
+  console.log('Firebase initialized successfully');
+} catch (error) {
+  console.error('Firebase initialization error:', error);
+  console.warn('Running in development mode with mock Firebase');
+  
+  // Mock Firebase for development
+  auth = {
+    currentUser: null,
+    onAuthStateChanged: (callback) => {
+      console.log('Mock auth state changed');
+      callback(null);
+      return () => {};
+    },
+    signInWithEmailAndPassword: async () => ({ user: { uid: 'mock-user' } }),
+    createUserWithEmailAndPassword: async () => ({ user: { uid: 'mock-user' } }),
+    signOut: async () => {}
+  };
+  
+  db = {
+    collection: () => ({
+      doc: () => ({
+        get: async () => ({ exists: () => true, data: () => ({}) }),
+        set: async () => {},
+        update: async () => {}
+      }),
+      where: () => ({
+        get: async () => ({ docs: [] })
+      }),
+      get: async () => ({ docs: [] })
+    })
+  };
+  
+  storage = {};
+  googleProvider = {};
+}
 
-// Authentication providers
-const googleProvider = new GoogleAuthProvider();
-
-// Set persistence
-setPersistence(auth, browserLocalPersistence);
-
-// Email verification functions
-export const verifyUserEmail = async (user) => {
-  try {
-    await sendEmailVerification(user);
-    return { success: true, message: 'Verification email sent!' };
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-};
-
-// Password reset functions
-export const sendPasswordReset = async (email) => {
-  try {
-    const { sendPasswordResetEmail } = await import("firebase/auth");
-    await sendPasswordResetEmail(auth, email);
-    return { success: true, message: 'Password reset email sent!' };
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-};
-
-export const verifyResetCode = async (code) => {
-  try {
-    const email = await verifyPasswordResetCode(auth, code);
-    return { success: true, email };
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-};
-
-export const resetPassword = async (code, newPassword) => {
-  try {
-    await confirmPasswordReset(auth, code, newPassword);
-    return { success: true, message: 'Password reset successful!' };
-  } catch (error) {
-    return { success: false, message: error.message };
-  }
-};
-
-// Check email verification
-export const checkEmailVerified = (user) => {
-  return user.emailVerified;
-};
-
-// Export everything
-export { 
-  auth, 
-  db, 
-  storage, 
-  googleProvider,
-  sendEmailVerification,
-  applyActionCode 
-};
-
+export { auth, db, storage, googleProvider };
 export default app;
